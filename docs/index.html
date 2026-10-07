@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LANDFIRE Tallgrass Prairie training polygons</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.17.0/dist/leaflet-geoman.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>LANDFIRE Tallgrass Prairie training polygons</h1>
+    <nav>
+      <button class="tab active" data-tab="map-view">Map</button>
+      <button class="tab" data-tab="table-view">Annotations <span id="annotation-count"></span></button>
+    </nav>
+  </header>
+
+  <div id="layout">
+    <aside id="sidebar">
+      <div class="notice">
+        Polygons are saved in <strong>this browser only</strong>. Use
+        <em>Export GeoJSON</em> on the Annotations tab to share them.
+      </div>
+
+      <label for="annotator">Your name</label>
+      <input id="annotator" type="text" autocomplete="name">
+
+      <label for="imagery">Imagery</label>
+      <select id="imagery"></select>
+      <p id="imagery-date" class="small muted">Zoom in to see when this imagery was captured.</p>
+
+      <form id="place-search" class="inline">
+        <input id="place-query" type="search" placeholder="Go to a place, e.g. Konza Prairie">
+        <button type="submit">Go</button>
+      </form>
+
+      <section>
+        <h2>Label polygons</h2>
+        <p id="pending-summary" class="small muted"></p>
+
+        <label for="cover-class">Cover type</label>
+        <select id="cover-class">
+          <option value="">Choose a cover type</option>
+        </select>
+
+        <fieldset>
+          <legend>Confidence</legend>
+          <label class="radio"><input type="radio" name="confidence" value="High"> High</label>
+          <label class="radio"><input type="radio" name="confidence" value="Medium" checked> Medium</label>
+          <label class="radio"><input type="radio" name="confidence" value="Low"> Low</label>
+        </fieldset>
+
+        <label for="notes">Notes</label>
+        <textarea id="notes" rows="3"
+          placeholder="What did you see? e.g. mowing swaths, cattle trails, rocky hillside remnant"></textarea>
+
+        <div class="buttons">
+          <button id="save" class="primary" disabled>Save</button>
+          <button id="discard" class="danger" disabled>Discard</button>
+        </div>
+      </section>
+
+      <details>
+        <summary>Interpretation tips</summary>
+        <div id="tips"></div>
+      </details>
+    </aside>
+
+    <main>
+      <div id="map-view" class="view active">
+        <div id="map"></div>
+      </div>
+      <div id="table-view" class="view">
+        <div class="table-tools">
+          <button id="zoom-selected">Zoom to selected</button>
+          <button id="delete-selected" class="danger">Delete selected</button>
+          <span class="spacer"></span>
+          <button id="export-geojson">Export GeoJSON</button>
+          <button id="export-csv">Export CSV</button>
+          <label class="button">Import GeoJSON<input id="import-geojson" type="file" accept=".geojson,.json" hidden></label>
+        </div>
+        <div class="table-wrap">
+          <table id="annotation-table">
+            <thead>
+              <tr>
+                <th><input type="checkbox" id="select-all"></th>
+                <th>Created (UTC)</th><th>Annotator</th><th>Cover type</th><th>Confidence</th>
+                <th>Acres</th><th>Imagery</th><th>Imagery date</th><th>Notes</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <p id="table-empty" class="muted">No annotations saved yet.</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="toast"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.17.0/dist/leaflet-geoman.min.js"></script>
+  <script src="config.js"></script>
+  <script src="data/tpos.js"></script>
+  <script src="imagery.js"></script>
+  <script src="storage.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
