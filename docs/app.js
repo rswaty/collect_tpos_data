@@ -243,11 +243,7 @@
     onEachFeature: (f, layer) => {
       const p = f.properties;
       layer.bindTooltip(escapeHtml(p.class));
-      layer.bindPopup(
-        `<b>${escapeHtml(p.class)}</b> (${escapeHtml(p.confidence)} confidence)<br>${escapeHtml(p.notes)}` +
-        `<br><small>${escapeHtml(p.annotator)}, ${escapeHtml((p.created_utc || "").slice(0, 10))}` +
-        `<br>Imagery: ${escapeHtml(p.imagery)} ${escapeHtml(p.imagery_date || "")}</small>`
-      );
+      layer.bindPopup(() => savedPopup(f));
     }
   }).addTo(map);
 
@@ -255,6 +251,40 @@
   addOverlayToggle("Study area", studyLayer);
   $("labels-toggle").addEventListener("change", e =>
     e.target.checked ? labels.addTo(map) : map.removeLayer(labels));
+
+  // Popup for a saved polygon: its details plus a Delete button, which asks
+  // for confirmation in the same popup before removing the polygon. Both
+  // views are built once and toggled, so a clicked button is never removed
+  // from the page (Leaflet would then treat the click as a map click and
+  // close the popup).
+  function savedPopup(f) {
+    const p = f.properties;
+    const div = document.createElement("div");
+    div.className = "saved-popup";
+    div.innerHTML =
+      '<div class="popup-details">' +
+      `<b>${escapeHtml(p.class)}</b> (${escapeHtml(p.confidence)} confidence)<br>${escapeHtml(p.notes)}` +
+      `<br><small>${escapeHtml(p.annotator)}, ${escapeHtml((p.created_utc || "").slice(0, 10))}` +
+      `<br>Imagery: ${escapeHtml(p.imagery)} ${escapeHtml(p.imagery_date || "")}</small>` +
+      '<button type="button" class="danger popup-delete">Delete polygon</button></div>' +
+      '<div class="popup-confirm-view" hidden>' +
+      "<b>Delete this polygon?</b><br><small>This can't be undone.</small>" +
+      '<div class="popup-actions"><button type="button" class="popup-cancel">Cancel</button>' +
+      '<button type="button" class="popup-confirm">Delete</button></div></div>';
+    const confirming = on => {
+      div.querySelector(".popup-details").hidden = on;
+      div.querySelector(".popup-confirm-view").hidden = !on;
+    };
+    div.querySelector(".popup-delete").addEventListener("click", () => confirming(true));
+    div.querySelector(".popup-cancel").addEventListener("click", () => confirming(false));
+    div.querySelector(".popup-confirm").addEventListener("click", async () => {
+      map.closePopup();
+      await Storage.remove([p.annotation_id]);
+      await refresh();
+      toast(`Deleted 1 ${p.class} polygon.`);
+    });
+    return div;
+  }
   L.control.scale({ position: "bottomleft" }).addTo(map);
 
 

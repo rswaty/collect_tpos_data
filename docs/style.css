@@ -217,6 +217,12 @@ td.num { text-align: right; }
 
 label.check { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-weight: normal; }
 
+.saved-popup { font-size: 14px; line-height: 1.45; }
+.saved-popup button { display: block; width: 100%; margin-top: 10px; }
+.popup-actions { display: flex; gap: 8px; margin-top: 10px; }
+.popup-actions button { margin-top: 0; }
+.popup-confirm { background: #b42318; border-color: #b42318; color: #fff; }
+
 #toast {
   position: fixed;
   right: 20px;
