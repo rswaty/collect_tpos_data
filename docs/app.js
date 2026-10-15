@@ -110,9 +110,8 @@
     updateSteps();
   });
 
-  // Steps: done ones get a check, the first unfinished one is highlighted,
-  // and later ones stay visible but dimmed and inactive, so drawing is the
-  // only thing to do at the start.
+  // Steps: done ones get a check and the first unfinished one is
+  // highlighted in orange.
   function updateSteps() {
     const done = {
       "step-draw": pending.size > 0,
@@ -120,16 +119,9 @@
       "step-save": false
     };
     const current = Object.keys(done).find(id => !done[id]);
-    let reached = true;
     for (const [id, isDone] of Object.entries(done)) {
       $(id).classList.toggle("done", isDone);
       $(id).classList.toggle("current", id === current);
-      $(id).classList.toggle("upcoming", !reached);
-      // Export works at any time, so it is never switched off.
-      for (const el of $(id).querySelectorAll(":scope > *, .actions > *")) {
-        if (!el.matches(".actions, #export-menu")) el.inert = !reached;
-      }
-      if (id === current) reached = false;
     }
   }
 

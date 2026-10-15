@@ -56,7 +56,6 @@ header nav { display: flex; gap: 4px; margin-left: auto; }
 .step.current .step-mark { background: #d85a30; border-color: #d85a30; color: #fff; }
 .step.done .step-mark { background: #e3f1e0; border-color: #3b7d2c; color: #3b7d2c; font-size: 0; }
 .step.done .step-mark::after { content: "\2713"; font-size: 16px; }
-.step.upcoming > :not(.actions), .step.upcoming #save { opacity: 0.4; }
 .status { margin-left: auto; font-size: 14px; font-weight: normal; color: #555; }
 button.icon { margin-left: auto; width: 30px; height: 30px; padding: 0; border-radius: 50%; color: #555; font-size: 15px; }
 
@@ -76,6 +75,7 @@ button.cta:hover { background: #c24d26; }
 #draw-start { height: 64px; font-size: 18px; }
 #draw-start.active { background: #993c1d; }
 #step-draw.done #draw-start { background: #fff; color: #993c1d; border: 1px solid #d85a30; height: 48px; font-size: 16px; }
+#step-save:not(.current) #save { background: #fff; color: #993c1d; border: 1px solid #d85a30; }
 .alt { margin: 8px 0 0; text-align: center; font-size: 15px; color: #555; }
 button.link { border: none; background: none; padding: 0; color: #185fa5; text-decoration: underline; font-size: inherit; }
 
