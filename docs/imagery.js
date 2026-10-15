@@ -87,6 +87,22 @@ const Imagery = (() => {
     });
   }
 
+  // Loads one real tile; resolves false if the server errors or takes more
+  // than `ms`. Used to hide imagery that would only show a blank map.
+  function tileLoads(entry, ms = 15000) {
+    const url = entry.type === "wms"
+      ? `${entry.url}?service=WMS&request=GetMap&version=1.1.1&layers=${entry.layers}&styles=` +
+        "&srs=EPSG:3857&bbox=-10370000,5070000,-10360000,5080000&width=256&height=256&format=image/jpeg"
+      : entry.url.replace("{z}", 12).replace("{y}", 1530).replace("{x}", 990);
+    return new Promise(resolve => {
+      const img = new Image();
+      const timer = setTimeout(() => resolve(false), ms);
+      img.onload = () => { clearTimeout(timer); resolve(true); };
+      img.onerror = () => { clearTimeout(timer); resolve(false); };
+      img.src = url;
+    });
+  }
+
   const EMPTY = { date: null, source: null, resolutionM: null };
 
   // Capture date of the imagery shown at a point. The NAIP service can take
@@ -132,5 +148,5 @@ const Imagery = (() => {
     return `Captured ${d.date} (${d.source}${res})`;
   }
 
-  return { buildCatalog, createLayer, captureDate, describe, EMPTY };
+  return { buildCatalog, createLayer, captureDate, describe, tileLoads, EMPTY };
 })();
