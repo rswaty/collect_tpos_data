@@ -131,20 +131,36 @@ td.num { text-align: right; }
 .draw-toolbar button:hover { background: #f1f1f1; }
 .draw-toolbar button.active { background: #185fa5; color: #fff; }
 
-.layers-control { background: #fff; border: 1px solid #999; border-radius: 4px; font-size: 15px; }
-.layers-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  max-width: 280px;
-  border: none;
-  padding: 6px 10px;
-  font-size: 15px;
+.map-bar { position: relative; font-size: 15px; }
+.map-bar-row { display: flex; background: #fff; border: 1px solid #999; border-radius: 6px; overflow: hidden; }
+.map-bar-row > * { display: flex; align-items: center; gap: 8px; margin: 0; padding: 8px 12px; border: none; border-radius: 0; font-size: 15px; }
+.map-bar-row > * + * { border-left: 1px solid #ccc; }
+.map-bar-row button:hover { background: #f1f1f1; }
+.map-bar-panel {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  min-width: 240px;
+  padding: 6px 0;
+  background: #fff;
+  border: 1px solid #999;
+  border-radius: 6px;
 }
-.layers-toggle span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.layers-panel { width: 300px; padding: 10px 12px; border-bottom: 1px solid #ddd; }
-.layers-panel label:first-child { margin-top: 0; }
-.layers-panel select { font-size: 15px; }
+.map-bar-panel .group { margin: 6px 12px 2px; font-size: 13px; color: #666; }
+.map-bar-panel button { display: block; width: 100%; padding: 7px 12px; border: none; border-radius: 0; text-align: left; font-size: 15px; }
+.map-bar-panel button:hover { background: #f1f1f1; }
+.map-bar-panel button.selected { background: #e6f1fb; font-weight: 500; }
+#imagery-date { margin: 6px 0 0; padding: 6px 12px 0; border-top: 1px solid #eee; }
+#overlay-toggles { padding: 0 12px 4px; }
+
+.switch { cursor: pointer; font-weight: normal; }
+.switch input { position: absolute; opacity: 0; pointer-events: none; }
+.switch span { position: relative; width: 34px; height: 20px; border-radius: 10px; background: #bbb; transition: background 0.15s; }
+.switch span::after { content: ""; position: absolute; left: 2px; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left 0.15s; }
+.switch input:checked + span { background: #185fa5; }
+.switch input:checked + span::after { left: 16px; }
+.switch input:focus-visible + span { outline: 2px solid #185fa5; outline-offset: 2px; }
+
 label.check { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-weight: normal; }
 
 #toast {

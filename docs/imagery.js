@@ -9,9 +9,13 @@ const Imagery = (() => {
   const NAIP_ATTR = "USDA NAIP via USGS The National Map";
   const EOX_ATTR = '<a href="https://s2maps.eu">Sentinel-2 cloudless</a> by EOX IT Services GmbH (contains modified Copernicus Sentinel data)';
 
-  const ESRI_GROUP = "Esri World Imagery (high-res, mixed sources)";
-  const NAIP_GROUP = "NAIP (USDA aerial, 0.3-1 m, leaf-on, most recent per state)";
-  const S2_GROUP = "Sentinel-2 cloudless annual mosaic (10 m)";
+  const ESRI_GROUP = "Esri World Imagery";
+  const NAIP_GROUP = "NAIP aerial (0.3-1 m)";
+  const S2_GROUP = "Sentinel-2 (10 m)";
+
+  // "2026-09-24" -> "Sep 24, 2026"
+  const shortDate = iso => new Date(`${iso}T00:00:00`)
+    .toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
   async function waybackEntries(n) {
     try {
@@ -27,6 +31,8 @@ const Imagery = (() => {
       return releases.map((r, i) => ({
         id: `wayback_${r.release}`,
         label: `Esri World Imagery, ${r.date} release${i === 0 ? " (latest)" : ""}`,
+        name: `Esri · ${shortDate(r.date)}`,
+        short: `${shortDate(r.date)}${i === 0 ? " · latest" : ""}`,
         group: ESRI_GROUP,
         type: "xyz",
         url: r.url.replace("{level}/{row}/{col}", "{z}/{y}/{x}"),
@@ -40,6 +46,8 @@ const Imagery = (() => {
       return [{
         id: "esri_current",
         label: "Esri World Imagery (current)",
+        name: "Esri · current",
+        short: "Current",
         group: ESRI_GROUP,
         type: "xyz",
         url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
@@ -51,18 +59,22 @@ const Imagery = (() => {
   }
 
   async function buildCatalog() {
-    const naip = (id, label, layers) => ({
-      id, label, group: NAIP_GROUP, type: "wms", url: NAIP_WMS, layers,
-      attribution: NAIP_ATTR, dateSource: "naip"
+    const naip = (id, label, short, layers) => ({
+      id, label, name: `NAIP · ${short.toLowerCase()}`, short, group: NAIP_GROUP, type: "wms",
+      url: NAIP_WMS, layers, attribution: NAIP_ATTR, dateSource: "naip"
     });
     const entries = [
       ...(await waybackEntries(CONFIG.waybackReleases)),
-      naip("naip_natural", "NAIP natural color", "USGSNAIPPlus:NaturalColor"),
-      naip("naip_cir", "NAIP color infrared (vegetation = red)", "USGSNAIPPlus:FalseColorComposite"),
-      naip("naip_ndvi", "NAIP NDVI", "USGSNAIPPlus:NDVI_Color"),
+      ...(CONFIG.naip ? [
+        naip("naip_natural", "NAIP natural color", "Natural color", "USGSNAIPPlus:NaturalColor"),
+        naip("naip_cir", "NAIP color infrared (vegetation = red)", "Color infrared", "USGSNAIPPlus:FalseColorComposite"),
+        naip("naip_ndvi", "NAIP NDVI", "NDVI", "USGSNAIPPlus:NDVI_Color")
+      ] : []),
       ...CONFIG.sentinelYears.map(year => ({
         id: `s2_${year}`,
         label: `Sentinel-2 cloudless ${year}`,
+        name: `Sentinel-2 · ${year}`,
+        short: String(year),
         group: S2_GROUP,
         type: "xyz",
         url: `https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-${year}_3857/default/g/{z}/{y}/{x}.jpg`,
@@ -84,22 +96,6 @@ const Imagery = (() => {
     }
     return L.tileLayer(entry.url, {
       attribution: entry.attribution, maxNativeZoom: entry.maxNativeZoom, maxZoom: 20
-    });
-  }
-
-  // Loads one real tile; resolves false if the server errors or takes more
-  // than `ms`. Used to hide imagery that would only show a blank map.
-  function tileLoads(entry, ms = 15000) {
-    const url = entry.type === "wms"
-      ? `${entry.url}?service=WMS&request=GetMap&version=1.1.1&layers=${entry.layers}&styles=` +
-        "&srs=EPSG:3857&bbox=-10370000,5070000,-10360000,5080000&width=256&height=256&format=image/jpeg"
-      : entry.url.replace("{z}", 12).replace("{y}", 1530).replace("{x}", 990);
-    return new Promise(resolve => {
-      const img = new Image();
-      const timer = setTimeout(() => resolve(false), ms);
-      img.onload = () => { clearTimeout(timer); resolve(true); };
-      img.onerror = () => { clearTimeout(timer); resolve(false); };
-      img.src = url;
     });
   }
 
@@ -148,5 +144,5 @@ const Imagery = (() => {
     return `Captured ${d.date} (${d.source}${res})`;
   }
 
-  return { buildCatalog, createLayer, captureDate, describe, tileLoads, EMPTY };
+  return { buildCatalog, createLayer, captureDate, describe, EMPTY };
 })();

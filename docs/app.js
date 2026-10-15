@@ -110,7 +110,9 @@
     rectangle: icon('<rect x="4" y="5" width="16" height="14" rx="1"/>'),
     edit: icon('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>'),
     trash: icon('<path d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12M9 7V4h6v3"/>'),
-    layers: icon('<path d="M12 4L3 9l9 5 9-5z"/><path d="M3 14l9 5 9-5"/>')
+    layers: icon('<path d="M12 4L3 9l9 5 9-5z"/><path d="M3 14l9 5 9-5"/>'),
+    image: icon('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 16l5-5 4 4 3-3 6 6"/>'),
+    chevron: icon('<path d="M6 15l6-6 6 6"/>')
   };
 
   // Place search, top left beside the zoom buttons.
@@ -124,25 +126,31 @@
   };
   searchControl.addTo(map);
 
-  // Imagery and overlays, bottom right: one compact button that opens a panel.
-  const layersControl = L.control({ position: "bottomright" });
-  layersControl.onAdd = () => {
-    const div = L.DomUtil.create("div", "layers-control");
+  // Bottom-right bar: a one-click place-label switch, the imagery picker
+  // (short names; opens a list), and a layers button for the less-used
+  // overlays. Each button opens its panel above the bar.
+  const mapBar = L.control({ position: "bottomright" });
+  mapBar.onAdd = () => {
+    const div = L.DomUtil.create("div", "map-bar");
     div.innerHTML =
-      '<div class="layers-panel" hidden>' +
-      '<label for="imagery">Imagery</label><select id="imagery"></select>' +
-      '<p id="imagery-date" class="small muted">Zoom in to see when this imagery was captured.</p>' +
-      '<div id="overlay-toggles"></div></div>' +
-      `<button type="button" class="layers-toggle">${ICONS.layers}<span id="imagery-name"></span></button>`;
-    div.querySelector(".layers-toggle").addEventListener("click", () => {
-      const panel = div.querySelector(".layers-panel");
-      panel.hidden = !panel.hidden;
-    });
+      '<div class="map-bar-panel" id="imagery-panel" hidden><div id="imagery-list"></div>' +
+      '<p id="imagery-date" class="small muted">Zoom in to see when this imagery was captured.</p></div>' +
+      '<div class="map-bar-panel" id="overlay-panel" hidden><div id="overlay-toggles"></div></div>' +
+      '<div class="map-bar-row">' +
+      '<label class="switch">Labels <input type="checkbox" id="labels-toggle"><span aria-hidden="true"></span></label>' +
+      `<button type="button" data-panel="imagery-panel">${ICONS.image}<span id="imagery-name"></span>${ICONS.chevron}</button>` +
+      `<button type="button" data-panel="overlay-panel" title="Layers" aria-label="Layers">${ICONS.layers}</button>` +
+      "</div>";
+    div.querySelectorAll("[data-panel]").forEach(b => b.addEventListener("click", () => {
+      for (const panel of div.querySelectorAll(".map-bar-panel")) {
+        panel.hidden = panel.id !== b.dataset.panel || !panel.hidden;
+      }
+    }));
     L.DomEvent.disableClickPropagation(div);
     L.DomEvent.disableScrollPropagation(div);
     return div;
   };
-  layersControl.addTo(map);
+  mapBar.addTo(map);
 
   function addOverlayToggle(name, layer) {
     const label = document.createElement("label");
@@ -157,50 +165,38 @@
   map.getPane("labels").style.pointerEvents = "none";
 
   const catalog = await Imagery.buildCatalog();
-  const groups = new Map();
+  let currentId = catalog.keys().next().value;
+  const currentImagery = () => catalog.get(currentId);
+
+  let lastGroup = null;
   for (const entry of catalog.values()) {
-    if (!groups.has(entry.group)) {
-      const og = document.createElement("optgroup");
-      og.label = entry.group;
-      groups.set(entry.group, og);
-      $("imagery").append(og);
+    if (entry.group !== lastGroup) {
+      $("imagery-list").insertAdjacentHTML("beforeend", `<p class="group">${escapeHtml(entry.group)}</p>`);
+      lastGroup = entry.group;
     }
-    groups.get(entry.group).append(new Option(entry.label, entry.id));
+    $("imagery-list").insertAdjacentHTML("beforeend",
+      `<button type="button" data-imagery="${escapeHtml(entry.id)}">${escapeHtml(entry.short)}</button>`);
   }
-  const currentImagery = () => catalog.get($("imagery").value);
-  const showImageryName = () => ($("imagery-name").textContent = currentImagery().label);
-  let imageryLayer = Imagery.createLayer(currentImagery()).addTo(map);
-  showImageryName();
-  $("imagery").addEventListener("change", () => {
-    map.removeLayer(imageryLayer);
+
+  let imageryLayer = null;
+  function showImagery(id) {
+    currentId = id;
+    if (imageryLayer) map.removeLayer(imageryLayer);
     imageryLayer = Imagery.createLayer(currentImagery()).addTo(map);
-    showImageryName();
+    $("imagery-name").textContent = currentImagery().name;
+    $("imagery-list").querySelectorAll("button")
+      .forEach(b => b.classList.toggle("selected", b.dataset.imagery === id));
+  }
+  showImagery(currentId);
+  $("imagery-list").addEventListener("click", e => {
+    const id = e.target.closest("[data-imagery]")?.dataset.imagery;
+    if (!id || id === currentId) return;
+    showImagery(id);
     requestCaptureDate();
   });
 
-  // Hide imagery whose server isn't serving tiles (NAIP is sometimes down),
-  // so nobody picks an option that shows a blank map. Sources sharing a
-  // server are checked once.
-  const byServer = new Map();
-  for (const e of catalog.values()) {
-    const host = new URL(e.url).host;
-    byServer.set(host, [...(byServer.get(host) || []), e]);
-  }
-  for (const entries of byServer.values()) {
-    Imagery.tileLoads(entries[0]).then(ok => {
-      if (ok) return;
-      const wasSelected = entries.some(e => e.id === $("imagery").value);
-      for (const e of entries) {
-        catalog.delete(e.id);
-        $("imagery").querySelector(`option[value="${e.id}"]`)?.remove();
-      }
-      $("imagery").querySelectorAll("optgroup").forEach(g => g.children.length || g.remove());
-      if (wasSelected) $("imagery").dispatchEvent(new Event("change"));
-    });
-  }
-
   const labelOpts = { pane: "labels", maxZoom: 20 };
-  // Place-name labels are off by default; they can be turned on under layers.
+  // Place and road names are off by default; the Labels switch turns them on.
   const labels = L.layerGroup([
     L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", labelOpts),
     L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}", labelOpts)
@@ -232,7 +228,8 @@
 
   addOverlayToggle("Annotations", annotationLayer);
   addOverlayToggle("Study area", studyLayer);
-  addOverlayToggle("Place labels", labels);
+  $("labels-toggle").addEventListener("change", e =>
+    e.target.checked ? labels.addTo(map) : map.removeLayer(labels));
   L.control.scale({ position: "bottomleft" }).addTo(map);
 
   const legend = L.control({ position: "bottomright" });
