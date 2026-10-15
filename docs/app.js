@@ -284,12 +284,23 @@
   const markActiveTool = () => drawControl.getContainer().querySelectorAll("button")
     .forEach(b => b.classList.toggle("active", b.dataset.tool === activeTool()));
   map.on("pm:drawstart pm:drawend pm:globaleditmodetoggled pm:globalremovalmodetoggled", markActiveTool);
+  // Finishes the polygon being drawn, if it has at least three points.
+  // Geoman has no public method for this, so it calls the draw handler's own.
+  function finishPolygon() {
+    const draw = map.pm.Draw.Polygon;
+    if (activeTool() === "Polygon" && draw._layer.getLatLngs().length >= 3) draw._finishShape();
+  }
   document.addEventListener("keydown", e => {
     if (e.key === "Escape") stopTools();
+    if (e.key === "Enter" && !e.target.matches("input, textarea, select, button")) finishPolygon();
   });
 
+  // Closing a polygon is easier: double-click the last point, or click
+  // near the first point and it snaps onto it.
   map.pm.setGlobalOptions({
-    snappable: false,
+    finishOn: "dblclick",
+    snappable: true,
+    snapDistance: 25,
     pathOptions: { color: "#FFFFFF", weight: 2, fillColor: "#FFFFFF", fillOpacity: 0.15, dashArray: "6 4" }
   });
 
