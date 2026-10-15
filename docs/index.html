@@ -21,11 +21,11 @@
     <aside id="sidebar">
       <section class="step" id="step-draw">
         <h2><span class="step-mark">1</span>Draw <span id="pending-summary" class="status"></span></h2>
-        <button type="button" id="draw-start" class="cta" data-draw="Polygon">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 6-3 11H7L4 9z"/></svg>
-          <span id="draw-start-label">Draw polygon</span>
-        </button>
-        <p class="alt">or <button type="button" class="link" data-draw="Rectangle">draw a rectangle</button></p>
+        <div class="segmented shape-switch" role="radiogroup" aria-label="Shape">
+          <label><input type="radio" name="shape" value="Polygon" checked><span>Polygon</span></label>
+          <label><input type="radio" name="shape" value="Rectangle"><span>Rectangle</span></label>
+        </div>
+        <button type="button" id="draw-start" class="cta"><span id="draw-start-icon"></span><span id="draw-start-label"></span></button>
       </section>
 
       <section class="step" id="step-classify">

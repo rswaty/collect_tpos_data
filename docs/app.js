@@ -260,15 +260,12 @@
 
   // ---- Drawing ----
 
-  // Drawing is the main action, so it gets the top-right corner: labelled
-  // buttons in one toolbar, like ArcGIS sketch tools. Click an active tool
-  // again, or press Esc, to stop.
+  // Edit and delete tools, top right. Drawing starts from step 1 in the
+  // sidebar. Click an active tool again, or press Esc, to stop.
   const drawControl = L.control({ position: "topright" });
   drawControl.onAdd = () => {
     const div = L.DomUtil.create("div", "draw-toolbar");
     div.innerHTML =
-      `<button type="button" data-tool="Polygon">${ICONS.polygon}Draw polygon</button>` +
-      `<button type="button" data-tool="Rectangle">${ICONS.rectangle}Rectangle</button>` +
       `<button type="button" data-tool="edit" title="Edit shapes" aria-label="Edit shapes">${ICONS.edit}</button>` +
       `<button type="button" data-tool="remove" title="Delete shapes" aria-label="Delete shapes">${ICONS.trash}</button>`;
     L.DomEvent.disableClickPropagation(div);
@@ -307,20 +304,35 @@
     else toast("Add at least three points first.", "warning");
   }
 
-  // Step 1 in the sidebar starts the same draw tools; while a polygon is
-  // being drawn, the big button finishes it.
-  document.querySelectorAll("[data-draw]").forEach(b => b.addEventListener("click", () => {
-    const shape = b.dataset.draw;
-    if (shape === "Polygon" && activeTool() === "Polygon") return finishPolygon();
-    const wasActive = activeTool() === shape;
+  // Step 1: pick polygon or rectangle, then one button draws it. While a
+  // polygon is being drawn the button finishes it; switching shape
+  // mid-drawing switches the tool.
+  const chosenShape = () => document.querySelector('input[name="shape"]:checked').value;
+  const isDrawing = () => ["Polygon", "Rectangle"].includes(activeTool());
+  function updateDrawButton() {
+    const shape = chosenShape();
+    $("draw-start").classList.toggle("active", isDrawing());
+    $("draw-start-icon").innerHTML = shape === "Polygon" ? ICONS.polygon : ICONS.rectangle;
+    $("draw-start-label").textContent =
+      activeTool() === "Polygon" ? "Finish polygon"
+        : activeTool() === "Rectangle" ? "Drawing rectangle…"
+        : `Draw ${shape.toLowerCase()}`;
+  }
+  $("draw-start").addEventListener("click", () => {
+    if (activeTool() === "Polygon") return finishPolygon();
+    const wasDrawing = isDrawing();
     stopTools();
-    if (!wasActive) map.pm.enableDraw(shape);
-  }));
-  map.on("pm:drawstart pm:drawend", () => {
-    const drawing = activeTool() === "Polygon";
-    $("draw-start").classList.toggle("active", drawing);
-    $("draw-start-label").textContent = drawing ? "Finish polygon" : "Draw polygon";
+    if (!wasDrawing) map.pm.enableDraw(chosenShape());
   });
+  document.querySelectorAll('input[name="shape"]').forEach(r => r.addEventListener("change", () => {
+    if (isDrawing()) {
+      stopTools();
+      map.pm.enableDraw(chosenShape());
+    }
+    updateDrawButton();
+  }));
+  map.on("pm:drawstart pm:drawend", updateDrawButton);
+  updateDrawButton();
   document.addEventListener("keydown", e => {
     if (e.key === "Escape") stopTools();
     if (e.key === "Enter" && !e.target.matches("input, textarea, select, button")) finishPolygon();
