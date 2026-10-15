@@ -103,7 +103,6 @@
 
   $("annotator").value = localStorage.getItem("tpos_annotator") || "";
   $("annotator").addEventListener("change", e => localStorage.setItem("tpos_annotator", e.target.value.trim()));
-  $("annotator").addEventListener("input", () => updateSteps());
 
   const selectedClass = () => document.querySelector('input[name="cover-class"]:checked')?.value || "";
   $("cover-class").addEventListener("change", () => {
@@ -111,18 +110,26 @@
     updateSteps();
   });
 
-  // Steps: done ones get a check, the first unfinished one is highlighted.
-  // All three stay visible so people see the whole workflow up front.
+  // Steps: done ones get a check, the first unfinished one is highlighted,
+  // and later ones stay visible but dimmed and inactive, so drawing is the
+  // only thing to do at the start.
   function updateSteps() {
     const done = {
-      "step-name": $("annotator").value.trim() !== "",
-      "step-label": pending.size > 0,
-      "step-classify": selectedClass() !== ""
+      "step-draw": pending.size > 0,
+      "step-classify": pending.size > 0 && selectedClass() !== "",
+      "step-save": false
     };
     const current = Object.keys(done).find(id => !done[id]);
+    let reached = true;
     for (const [id, isDone] of Object.entries(done)) {
       $(id).classList.toggle("done", isDone);
       $(id).classList.toggle("current", id === current);
+      $(id).classList.toggle("upcoming", !reached);
+      // Export works at any time, so it is never switched off.
+      for (const el of $(id).querySelectorAll(":scope > *, .actions > *")) {
+        if (!el.matches(".actions, #export-menu")) el.inert = !reached;
+      }
+      if (id === current) reached = false;
     }
   }
 
@@ -303,8 +310,25 @@
   // Geoman has no public method for this, so it calls the draw handler's own.
   function finishPolygon() {
     const draw = map.pm.Draw.Polygon;
-    if (activeTool() === "Polygon" && draw._layer.getLatLngs().length >= 3) draw._finishShape();
+    if (activeTool() !== "Polygon") return;
+    if (draw._layer.getLatLngs().length >= 3) draw._finishShape();
+    else toast("Add at least three points first.", "warning");
   }
+
+  // Step 1 in the sidebar starts the same draw tools; while a polygon is
+  // being drawn, the big button finishes it.
+  document.querySelectorAll("[data-draw]").forEach(b => b.addEventListener("click", () => {
+    const shape = b.dataset.draw;
+    if (shape === "Polygon" && activeTool() === "Polygon") return finishPolygon();
+    const wasActive = activeTool() === shape;
+    stopTools();
+    if (!wasActive) map.pm.enableDraw(shape);
+  }));
+  map.on("pm:drawstart pm:drawend", () => {
+    const drawing = activeTool() === "Polygon";
+    $("draw-start").classList.toggle("active", drawing);
+    $("draw-start-label").textContent = drawing ? "Finish polygon" : "Draw polygon";
+  });
   document.addEventListener("keydown", e => {
     if (e.key === "Escape") stopTools();
     if (e.key === "Enter" && !e.target.matches("input, textarea, select, button")) finishPolygon();
@@ -338,7 +362,7 @@
     const acres = pendingGeometries().reduce((s, g) => s + areaAcres(g), 0);
     $("pending-summary").textContent = n
       ? `${n} ${n === 1 ? "polygon" : "polygons"} · ${acres.toLocaleString(undefined, { maximumFractionDigits: 1 })} acres`
-      : "No polygon yet";
+      : "";
     updateSteps();
     requestCaptureDate();
   }
@@ -429,8 +453,11 @@
   $("save").addEventListener("click", async () => {
     const annotator = $("annotator").value.trim();
     const coverClass = selectedClass();
-    if (!annotator) return toast("Enter your name first.", "warning");
     if (!pending.size) return toast("Draw a polygon first.", "warning");
+    if (!annotator) {
+      $("annotator").focus();
+      return toast("Enter your name to save.", "warning");
+    }
     if (!coverClass) return toast("Choose a cover type before saving.", "warning");
 
     const entry = currentImagery();

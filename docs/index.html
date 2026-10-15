@@ -3,15 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>LANDFIRE Tallgrass Prairie training polygons</title>
+  <title>LANDFIRE Prairie Polygons</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.17.0/dist/leaflet-geoman.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header>
-    <h1>LANDFIRE Tallgrass Prairie</h1>
-    <span class="tag">Training polygon collector</span>
+    <h1>LANDFIRE Prairie Polygons</h1>
     <nav>
       <button class="tab active" data-tab="map-view">Map</button>
       <button class="tab" data-tab="table-view">Annotations <span id="annotation-count"></span></button>
@@ -20,50 +19,42 @@
 
   <div id="layout">
     <aside id="sidebar">
-      <div class="steps">
-        <section class="step" id="step-name">
-          <span class="step-mark">1</span>
-          <div class="step-body">
-            <h2><label for="annotator">Name</label></h2>
-            <input id="annotator" type="text" autocomplete="name">
-          </div>
-        </section>
+      <section class="step" id="step-draw">
+        <h2><span class="step-mark">1</span>Draw <span id="pending-summary" class="status"></span></h2>
+        <button type="button" id="draw-start" class="cta" data-draw="Polygon">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 6-3 11H7L4 9z"/></svg>
+          <span id="draw-start-label">Draw polygon</span>
+        </button>
+        <p class="alt">or <button type="button" class="link" data-draw="Rectangle">draw a rectangle</button></p>
+      </section>
 
-        <section class="step" id="step-label">
-          <span class="step-mark">2</span>
-          <div class="step-body">
-            <h2>Label</h2>
-            <p id="pending-summary" class="status"></p>
-          </div>
-        </section>
+      <section class="step" id="step-classify">
+        <h2><span class="step-mark">2</span>Classify
+          <button type="button" id="guide-open" class="icon" title="Interpretation guide" aria-label="Interpretation guide">?</button>
+        </h2>
+        <div id="cover-class" class="choices" role="radiogroup" aria-label="Cover type"></div>
+        <div class="segmented" role="radiogroup" aria-label="Confidence">
+          <label><input type="radio" name="confidence" value="High"><span>High</span></label>
+          <label><input type="radio" name="confidence" value="Medium" checked><span>Medium</span></label>
+          <label><input type="radio" name="confidence" value="Low"><span>Low</span></label>
+        </div>
+        <input id="notes" type="text" placeholder="Notes (optional)" aria-label="Notes">
+      </section>
 
-        <section class="step" id="step-classify">
-          <span class="step-mark">3</span>
-          <div class="step-body">
-            <h2>Classify
-              <button type="button" id="guide-open" class="icon" title="Interpretation guide" aria-label="Interpretation guide">?</button>
-            </h2>
-            <div id="cover-class" class="choices" role="radiogroup" aria-label="Cover type"></div>
-            <div class="segmented" role="radiogroup" aria-label="Confidence">
-              <label><input type="radio" name="confidence" value="High"><span>High</span></label>
-              <label><input type="radio" name="confidence" value="Medium" checked><span>Medium</span></label>
-              <label><input type="radio" name="confidence" value="Low"><span>Low</span></label>
+      <section class="step" id="step-save">
+        <h2><span class="step-mark">3</span>Save</h2>
+        <input id="annotator" type="text" autocomplete="name" placeholder="Your name" aria-label="Your name">
+        <div class="actions">
+          <button id="save" class="cta">Save</button>
+          <details id="export-menu">
+            <summary>Export</summary>
+            <div class="menu">
+              <button type="button" data-export="geojson">GeoJSON</button>
+              <button type="button" data-export="csv">CSV</button>
             </div>
-            <input id="notes" type="text" placeholder="Notes (optional)" aria-label="Notes">
-          </div>
-        </section>
-      </div>
-
-      <div class="actions">
-        <button id="save" class="primary">Save</button>
-        <details id="export-menu">
-          <summary>Export</summary>
-          <div class="menu">
-            <button type="button" data-export="geojson">GeoJSON</button>
-            <button type="button" data-export="csv">CSV</button>
-          </div>
-        </details>
-      </div>
+          </details>
+        </div>
+      </section>
     </aside>
 
     <main>
