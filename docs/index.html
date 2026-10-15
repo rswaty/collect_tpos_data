@@ -21,11 +21,12 @@
     <aside id="sidebar">
       <section class="step" id="step-draw">
         <h2><span class="step-mark">1</span>Draw <span id="pending-summary" class="status"></span></h2>
-        <div class="segmented shape-switch" role="radiogroup" aria-label="Shape">
-          <label><input type="radio" name="shape" value="Polygon" checked><span>Polygon</span></label>
-          <label><input type="radio" name="shape" value="Rectangle"><span>Rectangle</span></label>
+        <div id="draw-actions" class="draw-actions" hidden>
+          <button type="button" id="edit-shapes"><span id="edit-shapes-icon"></span><span id="edit-shapes-label">Edit shape</span></button>
+          <button type="button" id="start-over" class="danger"><span id="start-over-icon"></span>Start over</button>
         </div>
         <button type="button" id="draw-start" class="cta"><span id="draw-start-icon"></span><span id="draw-start-label"></span></button>
+        <p class="alt"><span id="draw-alt-prefix">or </span><button type="button" id="draw-alt" class="link"></button></p>
       </section>
 
       <section class="step" id="step-classify">

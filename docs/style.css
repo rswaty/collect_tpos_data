@@ -76,8 +76,13 @@ button.cta:hover { background: #c24d26; }
 #draw-start.active { background: #993c1d; }
 #step-draw.done #draw-start { background: #fff; color: #993c1d; border: 1px solid #d85a30; height: 48px; font-size: 17px; }
 #step-save:not(.current) #save { background: #fff; color: #993c1d; border: 1px solid #d85a30; }
-.shape-switch { margin-bottom: 10px; }
-.segmented.shape-switch input:checked + span { background: #fbe9e2; border-color: #d85a30; color: #993c1d; }
+.alt { margin: 8px 0 0; text-align: center; font-size: 16px; color: #555; }
+button.link { border: none; background: none; padding: 0; color: #185fa5; text-decoration: underline; font-size: inherit; }
+.draw-actions { display: flex; gap: 8px; margin-bottom: 8px; }
+.draw-actions[hidden] { display: none; }
+.draw-actions button { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; height: 44px; border-radius: 8px; }
+.draw-actions button span:first-child { display: flex; }
+#edit-shapes.active { background: #185fa5; border-color: #185fa5; color: #fff; }
 #draw-start-icon { display: flex; }
 #draw-start-icon svg { width: 22px; height: 22px; }
 
@@ -169,23 +174,16 @@ th { background: #f6f6f6; position: sticky; top: 0; }
 td.num { text-align: right; }
 
 
-.leaflet-top.leaflet-left { display: flex; align-items: flex-start; }
-.leaflet-top.leaflet-left .leaflet-control { clear: none; margin-right: 0; }
-.map-search input { width: 220px; height: 34px; font-size: 16px; border: 1px solid #999; border-radius: 4px; }
-
-.draw-toolbar { display: flex; background: #fff; border: 1px solid #999; border-radius: 4px; overflow: hidden; }
-.draw-toolbar button {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  border: none;
-  border-radius: 0;
-  padding: 8px 12px;
-  font-size: 16px;
+.map-search input {
+  width: 360px;
+  max-width: calc(100vw - 420px);
+  height: 46px;
+  padding: 0 14px;
+  font-size: 17px;
+  border: 1px solid #999;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
 }
-.draw-toolbar button + button { border-left: 1px solid #ccc; }
-.draw-toolbar button:hover { background: #f1f1f1; }
-.draw-toolbar button.active { background: #185fa5; color: #fff; }
 
 .map-bar { position: relative; font-size: 15px; }
 .map-bar-row { display: flex; background: #fff; border: 1px solid #999; border-radius: 6px; overflow: hidden; }

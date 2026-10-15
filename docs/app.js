@@ -134,18 +134,18 @@
     polygon: icon('<path d="M12 3l8 6-3 11H7L4 9z"/>'),
     rectangle: icon('<rect x="4" y="5" width="16" height="14" rx="1"/>'),
     edit: icon('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>'),
-    trash: icon('<path d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12M9 7V4h6v3"/>'),
+    restart: icon('<path d="M4 12a8 8 0 1 0 3-6.2"/><path d="M4 4v5h5"/>'),
     layers: icon('<path d="M12 4L3 9l9 5 9-5z"/><path d="M3 14l9 5 9-5"/>'),
     image: icon('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 16l5-5 4 4 3-3 6 6"/>'),
     chevron: icon('<path d="M6 15l6-6 6 6"/>')
   };
 
-  // Place search, top left beside the zoom buttons.
-  const searchControl = L.control({ position: "topleft" });
+  // Place search, top right.
+  const searchControl = L.control({ position: "topright" });
   searchControl.onAdd = () => {
     const form = L.DomUtil.create("form", "map-search");
     form.id = "place-search";
-    form.innerHTML = '<input id="place-query" type="search" placeholder="Go to a place" aria-label="Go to a place">';
+    form.innerHTML = '<input id="place-query" type="search" placeholder="Search a place or address" aria-label="Search a place or address">';
     L.DomEvent.disableClickPropagation(form);
     return form;
   };
@@ -260,41 +260,15 @@
 
   // ---- Drawing ----
 
-  // Edit and delete tools, top right. Drawing starts from step 1 in the
-  // sidebar. Click an active tool again, or press Esc, to stop.
-  const drawControl = L.control({ position: "topright" });
-  drawControl.onAdd = () => {
-    const div = L.DomUtil.create("div", "draw-toolbar");
-    div.innerHTML =
-      `<button type="button" data-tool="edit" title="Edit shapes" aria-label="Edit shapes">${ICONS.edit}</button>` +
-      `<button type="button" data-tool="remove" title="Delete shapes" aria-label="Delete shapes">${ICONS.trash}</button>`;
-    L.DomEvent.disableClickPropagation(div);
-    div.addEventListener("click", e => {
-      const tool = e.target.closest("button")?.dataset.tool;
-      if (!tool) return;
-      const wasActive = activeTool() === tool;
-      stopTools();
-      if (wasActive) return;
-      if (tool === "edit") map.pm.enableGlobalEditMode();
-      else if (tool === "remove") map.pm.enableGlobalRemovalMode();
-      else map.pm.enableDraw(tool);
-    });
-    return div;
-  };
-  drawControl.addTo(map);
-
+  // All drawing and editing starts from step 1 in the sidebar; Esc stops
+  // whatever tool is active.
   const activeTool = () =>
-    map.pm.globalEditModeEnabled() ? "edit"
-      : map.pm.globalRemovalModeEnabled() ? "remove"
-      : map.pm.Draw.getActiveShape();
+    map.pm.globalEditModeEnabled() ? "edit" : map.pm.Draw.getActiveShape();
   function stopTools() {
     map.pm.disableDraw();
     if (map.pm.globalEditModeEnabled()) map.pm.disableGlobalEditMode();
-    if (map.pm.globalRemovalModeEnabled()) map.pm.disableGlobalRemovalMode();
   }
-  const markActiveTool = () => drawControl.getContainer().querySelectorAll("button")
-    .forEach(b => b.classList.toggle("active", b.dataset.tool === activeTool()));
-  map.on("pm:drawstart pm:drawend pm:globaleditmodetoggled pm:globalremovalmodetoggled", markActiveTool);
+
   // Finishes the polygon being drawn, if it has at least three points.
   // Geoman has no public method for this, so it calls the draw handler's own.
   function finishPolygon() {
@@ -304,35 +278,47 @@
     else toast("Add at least three points first.", "warning");
   }
 
-  // Step 1: pick polygon or rectangle, then one button draws it. While a
-  // polygon is being drawn the button finishes it; switching shape
-  // mid-drawing switches the tool.
-  const chosenShape = () => document.querySelector('input[name="shape"]:checked').value;
+  // Step 1: one button draws a polygon (and finishes it while drawing);
+  // a link underneath switches to a rectangle. Once something is drawn,
+  // Edit shape moves its points and Start over erases the unsaved shapes.
   const isDrawing = () => ["Polygon", "Rectangle"].includes(activeTool());
   function updateDrawButton() {
-    const shape = chosenShape();
+    const tool = activeTool();
     $("draw-start").classList.toggle("active", isDrawing());
-    $("draw-start-icon").innerHTML = shape === "Polygon" ? ICONS.polygon : ICONS.rectangle;
+    $("draw-start-icon").innerHTML = tool === "Rectangle" ? ICONS.rectangle : ICONS.polygon;
     $("draw-start-label").textContent =
-      activeTool() === "Polygon" ? "Finish polygon"
-        : activeTool() === "Rectangle" ? "Drawing rectangle…"
-        : `Draw ${shape.toLowerCase()}`;
+      tool === "Polygon" ? "Finish polygon"
+        : tool === "Rectangle" ? "Drawing rectangle…"
+        : pending.size ? "Draw another" : "Draw polygon";
+    $("draw-alt").textContent =
+      tool === "Polygon" ? "switch to rectangle"
+        : tool === "Rectangle" ? "switch to polygon"
+        : "draw a rectangle";
+    $("draw-alt-prefix").hidden = isDrawing();
+    $("draw-actions").hidden = pending.size === 0;
+    $("edit-shapes").classList.toggle("active", tool === "edit");
+    $("edit-shapes-label").textContent = tool === "edit" ? "Done editing" : "Edit shape";
   }
   $("draw-start").addEventListener("click", () => {
     if (activeTool() === "Polygon") return finishPolygon();
     const wasDrawing = isDrawing();
     stopTools();
-    if (!wasDrawing) map.pm.enableDraw(chosenShape());
+    if (!wasDrawing) map.pm.enableDraw("Polygon");
   });
-  document.querySelectorAll('input[name="shape"]').forEach(r => r.addEventListener("change", () => {
-    if (isDrawing()) {
-      stopTools();
-      map.pm.enableDraw(chosenShape());
-    }
-    updateDrawButton();
-  }));
-  map.on("pm:drawstart pm:drawend", updateDrawButton);
-  updateDrawButton();
+  $("draw-alt").addEventListener("click", () => {
+    const next = activeTool() === "Rectangle" ? "Polygon" : "Rectangle";
+    stopTools();
+    map.pm.enableDraw(next);
+  });
+  $("edit-shapes").addEventListener("click", () => {
+    const wasEditing = activeTool() === "edit";
+    stopTools();
+    if (!wasEditing) map.pm.enableGlobalEditMode();
+  });
+  $("start-over").addEventListener("click", clearPending);
+  $("edit-shapes-icon").innerHTML = ICONS.edit;
+  $("start-over-icon").innerHTML = ICONS.restart;
+  map.on("pm:drawstart pm:drawend pm:globaleditmodetoggled", updateDrawButton);
   document.addEventListener("keydown", e => {
     if (e.key === "Escape") stopTools();
     if (e.key === "Enter" && !e.target.matches("input, textarea, select, button")) finishPolygon();
@@ -368,6 +354,7 @@
       ? `${n} ${n === 1 ? "polygon" : "polygons"} · ${acres.toLocaleString(undefined, { maximumFractionDigits: 1 })} acres`
       : "";
     updateSteps();
+    updateDrawButton();
     requestCaptureDate();
   }
 
