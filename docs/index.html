@@ -10,7 +10,8 @@
 </head>
 <body>
   <header>
-    <h1>LANDFIRE Tallgrass Prairie training polygons</h1>
+    <h1>LANDFIRE Tallgrass Prairie</h1>
+    <span class="tag">Training polygon collector</span>
     <nav>
       <button class="tab active" data-tab="map-view">Map</button>
       <button class="tab" data-tab="table-view">Annotations <span id="annotation-count"></span></button>
@@ -19,44 +20,50 @@
 
   <div id="layout">
     <aside id="sidebar">
-      <div class="notice">
-        Polygons are saved in <strong>this browser only</strong>. Use
-        <em>Export GeoJSON</em> on the Annotations tab to share them.
+      <div class="steps">
+        <section class="step" id="step-name">
+          <span class="step-mark">1</span>
+          <div class="step-body">
+            <h2><label for="annotator">Name</label></h2>
+            <input id="annotator" type="text" autocomplete="name">
+          </div>
+        </section>
+
+        <section class="step" id="step-label">
+          <span class="step-mark">2</span>
+          <div class="step-body">
+            <h2>Label</h2>
+            <p id="pending-summary" class="status"></p>
+          </div>
+        </section>
+
+        <section class="step" id="step-classify">
+          <span class="step-mark">3</span>
+          <div class="step-body">
+            <h2>Classify
+              <button type="button" id="guide-open" class="icon" title="Interpretation guide" aria-label="Interpretation guide">?</button>
+            </h2>
+            <div id="cover-class" class="choices" role="radiogroup" aria-label="Cover type"></div>
+            <div class="segmented" role="radiogroup" aria-label="Confidence">
+              <label><input type="radio" name="confidence" value="High"><span>High</span></label>
+              <label><input type="radio" name="confidence" value="Medium" checked><span>Medium</span></label>
+              <label><input type="radio" name="confidence" value="Low"><span>Low</span></label>
+            </div>
+            <input id="notes" type="text" placeholder="Notes (optional)" aria-label="Notes">
+          </div>
+        </section>
       </div>
 
-      <label for="annotator">Your name</label>
-      <input id="annotator" type="text" autocomplete="name">
-
-      <section>
-        <h2>Label polygons</h2>
-        <p id="pending-summary" class="small muted"></p>
-
-        <label for="cover-class">Cover type</label>
-        <select id="cover-class">
-          <option value="">Choose a cover type</option>
-        </select>
-
-        <fieldset>
-          <legend>Confidence</legend>
-          <label class="radio"><input type="radio" name="confidence" value="High"> High</label>
-          <label class="radio"><input type="radio" name="confidence" value="Medium" checked> Medium</label>
-          <label class="radio"><input type="radio" name="confidence" value="Low"> Low</label>
-        </fieldset>
-
-        <label for="notes">Notes</label>
-        <textarea id="notes" rows="3"
-          placeholder="What did you see? e.g. mowing swaths, cattle trails, rocky hillside remnant"></textarea>
-
-        <div class="buttons">
-          <button id="save" class="primary" disabled>Save</button>
-          <button id="discard" class="danger" disabled>Discard</button>
-        </div>
-      </section>
-
-      <details>
-        <summary>Interpretation tips</summary>
-        <div id="tips"></div>
-      </details>
+      <div class="actions">
+        <button id="save" class="primary">Save</button>
+        <details id="export-menu">
+          <summary>Export</summary>
+          <div class="menu">
+            <button type="button" data-export="geojson">GeoJSON</button>
+            <button type="button" data-export="csv">CSV</button>
+          </div>
+        </details>
+      </div>
     </aside>
 
     <main>
@@ -68,6 +75,7 @@
           <button id="zoom-selected">Zoom to selected</button>
           <button id="delete-selected" class="danger">Delete selected</button>
           <span class="spacer"></span>
+          <span class="muted">Saved in this browser only. Export to share.</span>
           <button id="export-geojson">Export GeoJSON</button>
           <button id="export-csv">Export CSV</button>
           <label class="button">Import GeoJSON<input id="import-geojson" type="file" accept=".geojson,.json" hidden></label>
@@ -88,6 +96,11 @@
       </div>
     </main>
   </div>
+
+  <dialog id="guide">
+    <div id="tips"></div>
+    <form method="dialog"><button class="primary">Close</button></form>
+  </dialog>
 
   <div id="toast"></div>
 

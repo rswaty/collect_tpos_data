@@ -91,14 +91,40 @@
   document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => showTab(t.dataset.tab)));
 
   for (const c of CONFIG.coverClasses) {
-    $("cover-class").add(new Option(c.name, c.name));
+    $("cover-class").insertAdjacentHTML("beforeend",
+      `<label style="--c:${c.color}"><input type="radio" name="cover-class" value="${escapeHtml(c.name)}">` +
+      `<span><span class="swatch" style="background:${c.color}"></span>${escapeHtml(c.name)}</span></label>`);
     $("tips").insertAdjacentHTML("beforeend",
       `<p><span class="swatch" style="background:${c.color}"></span><strong>${escapeHtml(c.name)}</strong><br>${escapeHtml(c.tip)}</p>`);
   }
   $("tips").insertAdjacentHTML("beforeend", `<p><strong>General:</strong> ${escapeHtml(CONFIG.generalTip)}</p>`);
 
+  $("guide-open").addEventListener("click", () => $("guide").showModal());
+
   $("annotator").value = localStorage.getItem("tpos_annotator") || "";
   $("annotator").addEventListener("change", e => localStorage.setItem("tpos_annotator", e.target.value.trim()));
+  $("annotator").addEventListener("input", () => updateSteps());
+
+  const selectedClass = () => document.querySelector('input[name="cover-class"]:checked')?.value || "";
+  $("cover-class").addEventListener("change", () => {
+    stylePending();
+    updateSteps();
+  });
+
+  // Steps: done ones get a check, the first unfinished one is highlighted.
+  // All three stay visible so people see the whole workflow up front.
+  function updateSteps() {
+    const done = {
+      "step-name": $("annotator").value.trim() !== "",
+      "step-label": pending.size > 0,
+      "step-classify": selectedClass() !== ""
+    };
+    const current = Object.keys(done).find(id => !done[id]);
+    for (const [id, isDone] of Object.entries(done)) {
+      $(id).classList.toggle("done", isDone);
+      $(id).classList.toggle("current", id === current);
+    }
+  }
 
   // ---- Map ----
 
@@ -232,14 +258,6 @@
     e.target.checked ? labels.addTo(map) : map.removeLayer(labels));
   L.control.scale({ position: "bottomleft" }).addTo(map);
 
-  const legend = L.control({ position: "bottomright" });
-  legend.onAdd = () => {
-    const div = L.DomUtil.create("div", "legend");
-    div.innerHTML = "<strong>Cover type</strong><br>" + CONFIG.coverClasses
-      .map(c => `<span class="swatch" style="background:${c.color}"></span>${escapeHtml(c.name)}`).join("<br>");
-    return div;
-  };
-  legend.addTo(map);
 
   // ---- Drawing ----
 
@@ -306,6 +324,7 @@
 
   map.on("pm:create", e => {
     pending.add(e.layer);
+    stylePending();
     e.layer.on("pm:edit", onPendingChange);
     onPendingChange();
   });
@@ -316,20 +335,23 @@
 
   function onPendingChange() {
     const n = pending.size;
-    $("save").disabled = n === 0;
-    $("discard").disabled = n === 0;
-    $("pending-summary").style.fontWeight = n ? "600" : "";
-    if (n === 0) {
-      $("pending-summary").textContent =
-        "Draw a polygon or rectangle with the tools on the map. Every shape you draw before saving gets the same label.";
-      $("pending-summary").className = "small muted";
-    } else {
-      const acres = pendingGeometries().reduce((s, g) => s + areaAcres(g), 0);
-      $("pending-summary").textContent =
-        `${n} ${n === 1 ? "polygon" : "polygons"} ready to label (${acres.toFixed(1)} acres)`;
-      $("pending-summary").className = "small";
-    }
+    const acres = pendingGeometries().reduce((s, g) => s + areaAcres(g), 0);
+    $("pending-summary").textContent = n
+      ? `${n} ${n === 1 ? "polygon" : "polygons"} · ${acres.toLocaleString(undefined, { maximumFractionDigits: 1 })} acres`
+      : "No polygon yet";
+    updateSteps();
     requestCaptureDate();
+  }
+
+  // Unsaved shapes take the colour and name of the chosen cover type.
+  function stylePending() {
+    const cls = selectedClass();
+    const color = classColor[cls] || "#FFFFFF";
+    pending.forEach(layer => {
+      layer.setStyle({ color, fillColor: color, dashArray: cls ? null : "6 4" });
+      layer.unbindTooltip();
+      if (cls) layer.bindTooltip(escapeHtml(cls), { permanent: true, direction: "center", className: "class-tag" });
+    });
   }
 
   function clearPending() {
@@ -339,7 +361,6 @@
     onPendingChange();
   }
 
-  $("discard").addEventListener("click", clearPending);
 
   window.addEventListener("beforeunload", e => {
     if (pending.size) e.preventDefault();
@@ -406,10 +427,10 @@
   // ---- Saving ----
 
   $("save").addEventListener("click", async () => {
-    if (!pending.size) return;
     const annotator = $("annotator").value.trim();
-    const coverClass = $("cover-class").value;
-    if (!annotator) return toast("Enter your name at the top of the sidebar first.", "warning");
+    const coverClass = selectedClass();
+    if (!annotator) return toast("Enter your name first.", "warning");
+    if (!pending.size) return toast("Draw a polygon first.", "warning");
     if (!coverClass) return toast("Choose a cover type before saving.", "warning");
 
     const entry = currentImagery();
@@ -446,8 +467,9 @@
     const outside = features.filter(f => !pointInGeometry([f.properties.lon, f.properties.lat], studyGeom)).length;
     await Storage.add(features);
     clearPending();
-    $("cover-class").value = "";
+    document.querySelectorAll('input[name="cover-class"]').forEach(r => (r.checked = false));
     $("notes").value = "";
+    updateSteps();
     await refresh();
     toast(outside
       ? `Saved ${features.length}; ${outside} outside the Tallgrass Prairie study area.`
@@ -515,6 +537,12 @@
     URL.revokeObjectURL(url);
   }
   const today = () => new Date().toISOString().slice(0, 10);
+
+  // Export menu under Save; same exports as the Annotations tab.
+  document.querySelectorAll("[data-export]").forEach(b => b.addEventListener("click", () => {
+    $("export-menu").open = false;
+    $(`export-${b.dataset.export}`).click();
+  }));
 
   $("export-geojson").addEventListener("click", () => {
     if (!annotations.length) return toast("Nothing to export yet.", "warning");
