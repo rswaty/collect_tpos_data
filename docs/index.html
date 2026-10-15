@@ -32,8 +32,10 @@
         <h2><span class="step-mark">2</span>Classify
           <button type="button" id="guide-open" class="icon" title="Interpretation guide" aria-label="Interpretation guide">?</button>
         </h2>
-        <div id="cover-class" class="choices" role="radiogroup" aria-label="Cover type"></div>
-        <div class="segmented" role="radiogroup" aria-label="Confidence">
+        <p class="sublabel" id="cover-label">Cover type</p>
+        <div id="cover-class" class="choices" role="radiogroup" aria-labelledby="cover-label"></div>
+        <p class="sublabel" id="confidence-label">How sure are you?</p>
+        <div class="segmented" role="radiogroup" aria-labelledby="confidence-label">
           <label><input type="radio" name="confidence" value="High"><span>High</span></label>
           <label><input type="radio" name="confidence" value="Medium" checked><span>Medium</span></label>
           <label><input type="radio" name="confidence" value="Low"><span>Low</span></label>
