@@ -91,14 +91,39 @@
   document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => showTab(t.dataset.tab)));
 
   for (const c of CONFIG.coverClasses) {
-    $("cover-class").add(new Option(c.name, c.name));
+    $("cover-class").insertAdjacentHTML("beforeend",
+      `<label style="--c:${c.color}"><input type="radio" name="cover-class" value="${escapeHtml(c.name)}">` +
+      `<span><span class="swatch" style="background:${c.color}"></span>${escapeHtml(c.name)}</span></label>`);
     $("tips").insertAdjacentHTML("beforeend",
       `<p><span class="swatch" style="background:${c.color}"></span><strong>${escapeHtml(c.name)}</strong><br>${escapeHtml(c.tip)}</p>`);
   }
   $("tips").insertAdjacentHTML("beforeend", `<p><strong>General:</strong> ${escapeHtml(CONFIG.generalTip)}</p>`);
 
+  $("guide-open").addEventListener("click", () => $("guide").showModal());
+
   $("annotator").value = localStorage.getItem("tpos_annotator") || "";
   $("annotator").addEventListener("change", e => localStorage.setItem("tpos_annotator", e.target.value.trim()));
+
+  const selectedClass = () => document.querySelector('input[name="cover-class"]:checked')?.value || "";
+  $("cover-class").addEventListener("change", () => {
+    stylePending();
+    updateSteps();
+  });
+
+  // Steps: done ones get a check and the first unfinished one is
+  // highlighted in orange.
+  function updateSteps() {
+    const done = {
+      "step-draw": pending.size > 0,
+      "step-classify": pending.size > 0 && selectedClass() !== "",
+      "step-save": false
+    };
+    const current = Object.keys(done).find(id => !done[id]);
+    for (const [id, isDone] of Object.entries(done)) {
+      $(id).classList.toggle("done", isDone);
+      $(id).classList.toggle("current", id === current);
+    }
+  }
 
   // ---- Map ----
 
@@ -109,18 +134,18 @@
     polygon: icon('<path d="M12 3l8 6-3 11H7L4 9z"/>'),
     rectangle: icon('<rect x="4" y="5" width="16" height="14" rx="1"/>'),
     edit: icon('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>'),
-    trash: icon('<path d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12M9 7V4h6v3"/>'),
+    restart: icon('<path d="M4 12a8 8 0 1 0 3-6.2"/><path d="M4 4v5h5"/>'),
     layers: icon('<path d="M12 4L3 9l9 5 9-5z"/><path d="M3 14l9 5 9-5"/>'),
     image: icon('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 16l5-5 4 4 3-3 6 6"/>'),
     chevron: icon('<path d="M6 15l6-6 6 6"/>')
   };
 
-  // Place search, top left beside the zoom buttons.
-  const searchControl = L.control({ position: "topleft" });
+  // Place search, top right.
+  const searchControl = L.control({ position: "topright" });
   searchControl.onAdd = () => {
     const form = L.DomUtil.create("form", "map-search");
     form.id = "place-search";
-    form.innerHTML = '<input id="place-query" type="search" placeholder="Go to a place" aria-label="Go to a place">';
+    form.innerHTML = '<input id="place-query" type="search" placeholder="Search a place or address" aria-label="Search a place or address">';
     L.DomEvent.disableClickPropagation(form);
     return form;
   };
@@ -218,11 +243,7 @@
     onEachFeature: (f, layer) => {
       const p = f.properties;
       layer.bindTooltip(escapeHtml(p.class));
-      layer.bindPopup(
-        `<b>${escapeHtml(p.class)}</b> (${escapeHtml(p.confidence)} confidence)<br>${escapeHtml(p.notes)}` +
-        `<br><small>${escapeHtml(p.annotator)}, ${escapeHtml((p.created_utc || "").slice(0, 10))}` +
-        `<br>Imagery: ${escapeHtml(p.imagery)} ${escapeHtml(p.imagery_date || "")}</small>`
-      );
+      layer.bindPopup(() => savedPopup(f));
     }
   }).addTo(map);
 
@@ -230,63 +251,104 @@
   addOverlayToggle("Study area", studyLayer);
   $("labels-toggle").addEventListener("change", e =>
     e.target.checked ? labels.addTo(map) : map.removeLayer(labels));
+
+  // Popup for a saved polygon: its details plus a Delete button, which asks
+  // for confirmation in the same popup before removing the polygon. Both
+  // views are built once and toggled, so a clicked button is never removed
+  // from the page (Leaflet would then treat the click as a map click and
+  // close the popup).
+  function savedPopup(f) {
+    const p = f.properties;
+    const div = document.createElement("div");
+    div.className = "saved-popup";
+    div.innerHTML =
+      '<div class="popup-details">' +
+      `<b>${escapeHtml(p.class)}</b> (${escapeHtml(p.confidence)} confidence)<br>${escapeHtml(p.notes)}` +
+      `<br><small>${escapeHtml(p.annotator)}, ${escapeHtml((p.created_utc || "").slice(0, 10))}` +
+      `<br>Imagery: ${escapeHtml(p.imagery)} ${escapeHtml(p.imagery_date || "")}</small>` +
+      '<button type="button" class="danger popup-delete">Delete polygon</button></div>' +
+      '<div class="popup-confirm-view" hidden>' +
+      "<b>Delete this polygon?</b><br><small>This can't be undone.</small>" +
+      '<div class="popup-actions"><button type="button" class="popup-cancel">Cancel</button>' +
+      '<button type="button" class="popup-confirm">Delete</button></div></div>';
+    const confirming = on => {
+      div.querySelector(".popup-details").hidden = on;
+      div.querySelector(".popup-confirm-view").hidden = !on;
+    };
+    div.querySelector(".popup-delete").addEventListener("click", () => confirming(true));
+    div.querySelector(".popup-cancel").addEventListener("click", () => confirming(false));
+    div.querySelector(".popup-confirm").addEventListener("click", async () => {
+      map.closePopup();
+      await Storage.remove([p.annotation_id]);
+      await refresh();
+      toast(`Deleted 1 ${p.class} polygon.`);
+    });
+    return div;
+  }
   L.control.scale({ position: "bottomleft" }).addTo(map);
 
-  const legend = L.control({ position: "bottomright" });
-  legend.onAdd = () => {
-    const div = L.DomUtil.create("div", "legend");
-    div.innerHTML = "<strong>Cover type</strong><br>" + CONFIG.coverClasses
-      .map(c => `<span class="swatch" style="background:${c.color}"></span>${escapeHtml(c.name)}`).join("<br>");
-    return div;
-  };
-  legend.addTo(map);
 
   // ---- Drawing ----
 
-  // Drawing is the main action, so it gets the top-right corner: labelled
-  // buttons in one toolbar, like ArcGIS sketch tools. Click an active tool
-  // again, or press Esc, to stop.
-  const drawControl = L.control({ position: "topright" });
-  drawControl.onAdd = () => {
-    const div = L.DomUtil.create("div", "draw-toolbar");
-    div.innerHTML =
-      `<button type="button" data-tool="Polygon">${ICONS.polygon}Draw polygon</button>` +
-      `<button type="button" data-tool="Rectangle">${ICONS.rectangle}Rectangle</button>` +
-      `<button type="button" data-tool="edit" title="Edit shapes" aria-label="Edit shapes">${ICONS.edit}</button>` +
-      `<button type="button" data-tool="remove" title="Delete shapes" aria-label="Delete shapes">${ICONS.trash}</button>`;
-    L.DomEvent.disableClickPropagation(div);
-    div.addEventListener("click", e => {
-      const tool = e.target.closest("button")?.dataset.tool;
-      if (!tool) return;
-      const wasActive = activeTool() === tool;
-      stopTools();
-      if (wasActive) return;
-      if (tool === "edit") map.pm.enableGlobalEditMode();
-      else if (tool === "remove") map.pm.enableGlobalRemovalMode();
-      else map.pm.enableDraw(tool);
-    });
-    return div;
-  };
-  drawControl.addTo(map);
-
+  // All drawing and editing starts from step 1 in the sidebar; Esc stops
+  // whatever tool is active.
   const activeTool = () =>
-    map.pm.globalEditModeEnabled() ? "edit"
-      : map.pm.globalRemovalModeEnabled() ? "remove"
-      : map.pm.Draw.getActiveShape();
+    map.pm.globalEditModeEnabled() ? "edit" : map.pm.Draw.getActiveShape();
   function stopTools() {
     map.pm.disableDraw();
     if (map.pm.globalEditModeEnabled()) map.pm.disableGlobalEditMode();
-    if (map.pm.globalRemovalModeEnabled()) map.pm.disableGlobalRemovalMode();
   }
-  const markActiveTool = () => drawControl.getContainer().querySelectorAll("button")
-    .forEach(b => b.classList.toggle("active", b.dataset.tool === activeTool()));
-  map.on("pm:drawstart pm:drawend pm:globaleditmodetoggled pm:globalremovalmodetoggled", markActiveTool);
+
   // Finishes the polygon being drawn, if it has at least three points.
   // Geoman has no public method for this, so it calls the draw handler's own.
   function finishPolygon() {
     const draw = map.pm.Draw.Polygon;
-    if (activeTool() === "Polygon" && draw._layer.getLatLngs().length >= 3) draw._finishShape();
+    if (activeTool() !== "Polygon") return;
+    if (draw._layer.getLatLngs().length >= 3) draw._finishShape();
+    else toast("Add at least three points first.", "warning");
   }
+
+  // Step 1: one button draws a polygon (and finishes it while drawing);
+  // a link underneath switches to a rectangle. Once something is drawn,
+  // Edit shape moves its points and Start over erases the unsaved shapes.
+  const isDrawing = () => ["Polygon", "Rectangle"].includes(activeTool());
+  function updateDrawButton() {
+    const tool = activeTool();
+    $("draw-start").classList.toggle("active", isDrawing());
+    $("draw-start-icon").innerHTML = tool === "Rectangle" ? ICONS.rectangle : ICONS.polygon;
+    $("draw-start-label").textContent =
+      tool === "Polygon" ? "Finish polygon"
+        : tool === "Rectangle" ? "Drawing rectangle…"
+        : pending.size ? "Draw another" : "Draw polygon";
+    $("draw-alt").textContent =
+      tool === "Polygon" ? "switch to rectangle"
+        : tool === "Rectangle" ? "switch to polygon"
+        : "draw a rectangle";
+    $("draw-alt-prefix").hidden = isDrawing();
+    $("draw-actions").hidden = pending.size === 0;
+    $("edit-shapes").classList.toggle("active", tool === "edit");
+    $("edit-shapes-label").textContent = tool === "edit" ? "Done editing" : "Edit shape";
+  }
+  $("draw-start").addEventListener("click", () => {
+    if (activeTool() === "Polygon") return finishPolygon();
+    const wasDrawing = isDrawing();
+    stopTools();
+    if (!wasDrawing) map.pm.enableDraw("Polygon");
+  });
+  $("draw-alt").addEventListener("click", () => {
+    const next = activeTool() === "Rectangle" ? "Polygon" : "Rectangle";
+    stopTools();
+    map.pm.enableDraw(next);
+  });
+  $("edit-shapes").addEventListener("click", () => {
+    const wasEditing = activeTool() === "edit";
+    stopTools();
+    if (!wasEditing) map.pm.enableGlobalEditMode();
+  });
+  $("start-over").addEventListener("click", clearPending);
+  $("edit-shapes-icon").innerHTML = ICONS.edit;
+  $("start-over-icon").innerHTML = ICONS.restart;
+  map.on("pm:drawstart pm:drawend pm:globaleditmodetoggled", updateDrawButton);
   document.addEventListener("keydown", e => {
     if (e.key === "Escape") stopTools();
     if (e.key === "Enter" && !e.target.matches("input, textarea, select, button")) finishPolygon();
@@ -306,6 +368,7 @@
 
   map.on("pm:create", e => {
     pending.add(e.layer);
+    stylePending();
     e.layer.on("pm:edit", onPendingChange);
     onPendingChange();
   });
@@ -316,20 +379,24 @@
 
   function onPendingChange() {
     const n = pending.size;
-    $("save").disabled = n === 0;
-    $("discard").disabled = n === 0;
-    $("pending-summary").style.fontWeight = n ? "600" : "";
-    if (n === 0) {
-      $("pending-summary").textContent =
-        "Draw a polygon or rectangle with the tools on the map. Every shape you draw before saving gets the same label.";
-      $("pending-summary").className = "small muted";
-    } else {
-      const acres = pendingGeometries().reduce((s, g) => s + areaAcres(g), 0);
-      $("pending-summary").textContent =
-        `${n} ${n === 1 ? "polygon" : "polygons"} ready to label (${acres.toFixed(1)} acres)`;
-      $("pending-summary").className = "small";
-    }
+    const acres = pendingGeometries().reduce((s, g) => s + areaAcres(g), 0);
+    $("pending-summary").textContent = n
+      ? `${n} ${n === 1 ? "polygon" : "polygons"} · ${acres.toLocaleString(undefined, { maximumFractionDigits: 1 })} acres`
+      : "";
+    updateSteps();
+    updateDrawButton();
     requestCaptureDate();
+  }
+
+  // Unsaved shapes take the colour and name of the chosen cover type.
+  function stylePending() {
+    const cls = selectedClass();
+    const color = classColor[cls] || "#FFFFFF";
+    pending.forEach(layer => {
+      layer.setStyle({ color, fillColor: color, dashArray: cls ? null : "6 4" });
+      layer.unbindTooltip();
+      if (cls) layer.bindTooltip(escapeHtml(cls), { permanent: true, direction: "center", className: "class-tag" });
+    });
   }
 
   function clearPending() {
@@ -339,7 +406,6 @@
     onPendingChange();
   }
 
-  $("discard").addEventListener("click", clearPending);
 
   window.addEventListener("beforeunload", e => {
     if (pending.size) e.preventDefault();
@@ -406,10 +472,13 @@
   // ---- Saving ----
 
   $("save").addEventListener("click", async () => {
-    if (!pending.size) return;
     const annotator = $("annotator").value.trim();
-    const coverClass = $("cover-class").value;
-    if (!annotator) return toast("Enter your name at the top of the sidebar first.", "warning");
+    const coverClass = selectedClass();
+    if (!pending.size) return toast("Draw a polygon first.", "warning");
+    if (!annotator) {
+      $("annotator").focus();
+      return toast("Enter your name to save.", "warning");
+    }
     if (!coverClass) return toast("Choose a cover type before saving.", "warning");
 
     const entry = currentImagery();
@@ -446,8 +515,9 @@
     const outside = features.filter(f => !pointInGeometry([f.properties.lon, f.properties.lat], studyGeom)).length;
     await Storage.add(features);
     clearPending();
-    $("cover-class").value = "";
+    document.querySelectorAll('input[name="cover-class"]').forEach(r => (r.checked = false));
     $("notes").value = "";
+    updateSteps();
     await refresh();
     toast(outside
       ? `Saved ${features.length}; ${outside} outside the Tallgrass Prairie study area.`
@@ -515,6 +585,12 @@
     URL.revokeObjectURL(url);
   }
   const today = () => new Date().toISOString().slice(0, 10);
+
+  // Export menu under Save; same exports as the Annotations tab.
+  document.querySelectorAll("[data-export]").forEach(b => b.addEventListener("click", () => {
+    $("export-menu").open = false;
+    $(`export-${b.dataset.export}`).click();
+  }));
 
   $("export-geojson").addEventListener("click", () => {
     if (!annotations.length) return toast("Nothing to export yet.", "warning");

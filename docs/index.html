@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>LANDFIRE Tallgrass Prairie training polygons</title>
+  <title>LANDFIRE Prairie Polygons</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.17.0/dist/leaflet-geoman.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header>
-    <h1>LANDFIRE Tallgrass Prairie training polygons</h1>
+    <h1>LANDFIRE Prairie Polygons</h1>
     <nav>
       <button class="tab active" data-tab="map-view">Map</button>
       <button class="tab" data-tab="table-view">Annotations <span id="annotation-count"></span></button>
@@ -19,44 +19,45 @@
 
   <div id="layout">
     <aside id="sidebar">
-      <div class="notice">
-        Polygons are saved in <strong>this browser only</strong>. Use
-        <em>Export GeoJSON</em> on the Annotations tab to share them.
-      </div>
-
-      <label for="annotator">Your name</label>
-      <input id="annotator" type="text" autocomplete="name">
-
-      <section>
-        <h2>Label polygons</h2>
-        <p id="pending-summary" class="small muted"></p>
-
-        <label for="cover-class">Cover type</label>
-        <select id="cover-class">
-          <option value="">Choose a cover type</option>
-        </select>
-
-        <fieldset>
-          <legend>Confidence</legend>
-          <label class="radio"><input type="radio" name="confidence" value="High"> High</label>
-          <label class="radio"><input type="radio" name="confidence" value="Medium" checked> Medium</label>
-          <label class="radio"><input type="radio" name="confidence" value="Low"> Low</label>
-        </fieldset>
-
-        <label for="notes">Notes</label>
-        <textarea id="notes" rows="3"
-          placeholder="What did you see? e.g. mowing swaths, cattle trails, rocky hillside remnant"></textarea>
-
-        <div class="buttons">
-          <button id="save" class="primary" disabled>Save</button>
-          <button id="discard" class="danger" disabled>Discard</button>
+      <section class="step" id="step-draw">
+        <h2><span class="step-mark">1</span>Draw <span id="pending-summary" class="status"></span></h2>
+        <div id="draw-actions" class="draw-actions" hidden>
+          <button type="button" id="edit-shapes"><span id="edit-shapes-icon"></span><span id="edit-shapes-label">Edit shape</span></button>
+          <button type="button" id="start-over" class="danger"><span id="start-over-icon"></span>Start over</button>
         </div>
+        <button type="button" id="draw-start" class="cta"><span id="draw-start-icon"></span><span id="draw-start-label"></span></button>
+        <p class="alt"><span id="draw-alt-prefix">or </span><button type="button" id="draw-alt" class="link"></button></p>
       </section>
 
-      <details>
-        <summary>Interpretation tips</summary>
-        <div id="tips"></div>
-      </details>
+      <section class="step" id="step-classify">
+        <h2><span class="step-mark">2</span>Classify
+          <button type="button" id="guide-open" class="icon" title="Interpretation guide" aria-label="Interpretation guide">?</button>
+        </h2>
+        <p class="sublabel" id="cover-label">Cover type</p>
+        <div id="cover-class" class="choices" role="radiogroup" aria-labelledby="cover-label"></div>
+        <p class="sublabel" id="confidence-label">How sure are you?</p>
+        <div class="segmented" role="radiogroup" aria-labelledby="confidence-label">
+          <label><input type="radio" name="confidence" value="Low"><span>Low</span></label>
+          <label><input type="radio" name="confidence" value="Medium" checked><span>Medium</span></label>
+          <label><input type="radio" name="confidence" value="High"><span>High</span></label>
+        </div>
+        <input id="notes" type="text" placeholder="Notes (optional)" aria-label="Notes">
+      </section>
+
+      <section class="step" id="step-save">
+        <h2><span class="step-mark">3</span>Save</h2>
+        <input id="annotator" type="text" autocomplete="name" placeholder="Your name" aria-label="Your name">
+        <div class="actions">
+          <button id="save" class="cta">Save</button>
+          <details id="export-menu">
+            <summary>Export</summary>
+            <div class="menu">
+              <button type="button" data-export="geojson">GeoJSON</button>
+              <button type="button" data-export="csv">CSV</button>
+            </div>
+          </details>
+        </div>
+      </section>
     </aside>
 
     <main>
@@ -68,6 +69,7 @@
           <button id="zoom-selected">Zoom to selected</button>
           <button id="delete-selected" class="danger">Delete selected</button>
           <span class="spacer"></span>
+          <span class="muted">Saved in this browser only. Export to share.</span>
           <button id="export-geojson">Export GeoJSON</button>
           <button id="export-csv">Export CSV</button>
           <label class="button">Import GeoJSON<input id="import-geojson" type="file" accept=".geojson,.json" hidden></label>
@@ -88,6 +90,11 @@
       </div>
     </main>
   </div>
+
+  <dialog id="guide">
+    <div id="tips"></div>
+    <form method="dialog"><button class="primary">Close</button></form>
+  </dialog>
 
   <div id="toast"></div>
 
