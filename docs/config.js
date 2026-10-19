@@ -27,5 +27,7 @@ const CONFIG = {
 
   // Number of recent Esri World Imagery (Wayback) releases offered.
   waybackReleases: 6,
-  sentinelYears: [2025, 2024, 2023]
+  // Not offered yet. To turn them on: naip: true, sentinelYears: [2025, 2024, 2023]
+  naip: false,
+  sentinelYears: []
 };

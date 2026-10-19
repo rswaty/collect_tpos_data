@@ -69,7 +69,6 @@ button.primary { background: #1f6feb; border-color: #1f6feb; color: #fff; }
 button.danger { color: #b42318; border-color: #e3a29b; }
 
 .buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
-form.inline { display: flex; gap: 6px; margin-top: 10px; }
 
 .small { font-size: 12.5px; }
 .muted { color: #666; }
@@ -113,6 +112,56 @@ td.num { text-align: right; }
   font-size: 12.5px;
   line-height: 1.6;
 }
+
+.leaflet-top.leaflet-left { display: flex; align-items: flex-start; }
+.leaflet-top.leaflet-left .leaflet-control { clear: none; margin-right: 0; }
+.map-search input { width: 220px; height: 34px; font-size: 16px; border: 1px solid #999; border-radius: 4px; }
+
+.draw-toolbar { display: flex; background: #fff; border: 1px solid #999; border-radius: 4px; overflow: hidden; }
+.draw-toolbar button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  border-radius: 0;
+  padding: 8px 12px;
+  font-size: 16px;
+}
+.draw-toolbar button + button { border-left: 1px solid #ccc; }
+.draw-toolbar button:hover { background: #f1f1f1; }
+.draw-toolbar button.active { background: #185fa5; color: #fff; }
+
+.map-bar { position: relative; font-size: 15px; }
+.map-bar-row { display: flex; background: #fff; border: 1px solid #999; border-radius: 6px; overflow: hidden; }
+.map-bar-row > * { display: flex; align-items: center; gap: 8px; margin: 0; padding: 8px 12px; border: none; border-radius: 0; font-size: 15px; }
+.map-bar-row > * + * { border-left: 1px solid #ccc; }
+.map-bar-row button:hover { background: #f1f1f1; }
+.map-bar-panel {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  min-width: 240px;
+  padding: 6px 0;
+  background: #fff;
+  border: 1px solid #999;
+  border-radius: 6px;
+}
+.map-bar-panel .group { margin: 6px 12px 2px; font-size: 13px; color: #666; }
+.map-bar-panel button { display: block; width: 100%; padding: 7px 12px; border: none; border-radius: 0; text-align: left; font-size: 15px; }
+.map-bar-panel button:hover { background: #f1f1f1; }
+.map-bar-panel button.selected { background: #e6f1fb; font-weight: 500; }
+#imagery-date { margin: 6px 0 0; padding: 6px 12px 0; border-top: 1px solid #eee; }
+#overlay-toggles { padding: 0 12px 4px; }
+
+.switch { cursor: pointer; font-weight: normal; }
+.switch input { position: absolute; opacity: 0; pointer-events: none; }
+.switch span { position: relative; width: 34px; height: 20px; border-radius: 10px; background: #bbb; transition: background 0.15s; }
+.switch span::after { content: ""; position: absolute; left: 2px; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left 0.15s; }
+.switch input:checked + span { background: #185fa5; }
+.switch input:checked + span::after { left: 16px; }
+.switch input:focus-visible + span { outline: 2px solid #185fa5; outline-offset: 2px; }
+
+label.check { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-weight: normal; }
 
 #toast {
   position: fixed;

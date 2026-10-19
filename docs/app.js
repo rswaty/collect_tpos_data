@@ -103,34 +103,104 @@
   // ---- Map ----
 
   const map = L.map("map", { maxZoom: 20 }).setView([44, -90], 5);
+
+  const icon = d => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+  const ICONS = {
+    polygon: icon('<path d="M12 3l8 6-3 11H7L4 9z"/>'),
+    rectangle: icon('<rect x="4" y="5" width="16" height="14" rx="1"/>'),
+    edit: icon('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>'),
+    trash: icon('<path d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12M9 7V4h6v3"/>'),
+    layers: icon('<path d="M12 4L3 9l9 5 9-5z"/><path d="M3 14l9 5 9-5"/>'),
+    image: icon('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 16l5-5 4 4 3-3 6 6"/>'),
+    chevron: icon('<path d="M6 15l6-6 6 6"/>')
+  };
+
+  // Place search, top left beside the zoom buttons.
+  const searchControl = L.control({ position: "topleft" });
+  searchControl.onAdd = () => {
+    const form = L.DomUtil.create("form", "map-search");
+    form.id = "place-search";
+    form.innerHTML = '<input id="place-query" type="search" placeholder="Go to a place" aria-label="Go to a place">';
+    L.DomEvent.disableClickPropagation(form);
+    return form;
+  };
+  searchControl.addTo(map);
+
+  // Bottom-right bar: a one-click place-label switch, the imagery picker
+  // (short names; opens a list), and a layers button for the less-used
+  // overlays. Each button opens its panel above the bar.
+  const mapBar = L.control({ position: "bottomright" });
+  mapBar.onAdd = () => {
+    const div = L.DomUtil.create("div", "map-bar");
+    div.innerHTML =
+      '<div class="map-bar-panel" id="imagery-panel" hidden><div id="imagery-list"></div>' +
+      '<p id="imagery-date" class="small muted">Zoom in to see when this imagery was captured.</p></div>' +
+      '<div class="map-bar-panel" id="overlay-panel" hidden><div id="overlay-toggles"></div></div>' +
+      '<div class="map-bar-row">' +
+      '<label class="switch">Labels <input type="checkbox" id="labels-toggle"><span aria-hidden="true"></span></label>' +
+      `<button type="button" data-panel="imagery-panel">${ICONS.image}<span id="imagery-name"></span>${ICONS.chevron}</button>` +
+      `<button type="button" data-panel="overlay-panel" title="Layers" aria-label="Layers">${ICONS.layers}</button>` +
+      "</div>";
+    div.querySelectorAll("[data-panel]").forEach(b => b.addEventListener("click", () => {
+      for (const panel of div.querySelectorAll(".map-bar-panel")) {
+        panel.hidden = panel.id !== b.dataset.panel || !panel.hidden;
+      }
+    }));
+    L.DomEvent.disableClickPropagation(div);
+    L.DomEvent.disableScrollPropagation(div);
+    return div;
+  };
+  mapBar.addTo(map);
+
+  function addOverlayToggle(name, layer) {
+    const label = document.createElement("label");
+    label.className = "check";
+    label.innerHTML = `<input type="checkbox"${map.hasLayer(layer) ? " checked" : ""}> ${escapeHtml(name)}`;
+    label.querySelector("input").addEventListener("change", e =>
+      e.target.checked ? layer.addTo(map) : map.removeLayer(layer));
+    $("overlay-toggles").append(label);
+  }
   map.createPane("labels");
   map.getPane("labels").style.zIndex = 350;
   map.getPane("labels").style.pointerEvents = "none";
 
   const catalog = await Imagery.buildCatalog();
-  const groups = new Map();
+  let currentId = catalog.keys().next().value;
+  const currentImagery = () => catalog.get(currentId);
+
+  let lastGroup = null;
   for (const entry of catalog.values()) {
-    if (!groups.has(entry.group)) {
-      const og = document.createElement("optgroup");
-      og.label = entry.group;
-      groups.set(entry.group, og);
-      $("imagery").append(og);
+    if (entry.group !== lastGroup) {
+      $("imagery-list").insertAdjacentHTML("beforeend", `<p class="group">${escapeHtml(entry.group)}</p>`);
+      lastGroup = entry.group;
     }
-    groups.get(entry.group).append(new Option(entry.label, entry.id));
+    $("imagery-list").insertAdjacentHTML("beforeend",
+      `<button type="button" data-imagery="${escapeHtml(entry.id)}">${escapeHtml(entry.short)}</button>`);
   }
-  const currentImagery = () => catalog.get($("imagery").value);
-  let imageryLayer = Imagery.createLayer(currentImagery()).addTo(map);
-  $("imagery").addEventListener("change", () => {
-    map.removeLayer(imageryLayer);
+
+  let imageryLayer = null;
+  function showImagery(id) {
+    currentId = id;
+    if (imageryLayer) map.removeLayer(imageryLayer);
     imageryLayer = Imagery.createLayer(currentImagery()).addTo(map);
+    $("imagery-name").textContent = currentImagery().name;
+    $("imagery-list").querySelectorAll("button")
+      .forEach(b => b.classList.toggle("selected", b.dataset.imagery === id));
+  }
+  showImagery(currentId);
+  $("imagery-list").addEventListener("click", e => {
+    const id = e.target.closest("[data-imagery]")?.dataset.imagery;
+    if (!id || id === currentId) return;
+    showImagery(id);
     requestCaptureDate();
   });
 
   const labelOpts = { pane: "labels", maxZoom: 20 };
+  // Place and road names are off by default; the Labels switch turns them on.
   const labels = L.layerGroup([
     L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", labelOpts),
     L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}", labelOpts)
-  ]).addTo(map);
+  ]);
 
   const studyGeom = STUDY_AREA.features[0].geometry;
   const studyLayer = L.geoJSON(STUDY_AREA, {
@@ -156,8 +226,10 @@
     }
   }).addTo(map);
 
-  L.control.layers(null, { Annotations: annotationLayer, "Study area": studyLayer, Labels: labels },
-    { position: "topright" }).addTo(map);
+  addOverlayToggle("Annotations", annotationLayer);
+  addOverlayToggle("Study area", studyLayer);
+  $("labels-toggle").addEventListener("change", e =>
+    e.target.checked ? labels.addTo(map) : map.removeLayer(labels));
   L.control.scale({ position: "bottomleft" }).addTo(map);
 
   const legend = L.control({ position: "bottomright" });
@@ -171,14 +243,61 @@
 
   // ---- Drawing ----
 
-  map.pm.addControls({
-    position: "topleft",
-    drawMarker: false, drawCircleMarker: false, drawPolyline: false, drawCircle: false,
-    drawText: false, cutPolygon: false, rotateMode: false, dragMode: false,
-    drawPolygon: true, drawRectangle: true, editMode: true, removalMode: true
+  // Drawing is the main action, so it gets the top-right corner: labelled
+  // buttons in one toolbar, like ArcGIS sketch tools. Click an active tool
+  // again, or press Esc, to stop.
+  const drawControl = L.control({ position: "topright" });
+  drawControl.onAdd = () => {
+    const div = L.DomUtil.create("div", "draw-toolbar");
+    div.innerHTML =
+      `<button type="button" data-tool="Polygon">${ICONS.polygon}Draw polygon</button>` +
+      `<button type="button" data-tool="Rectangle">${ICONS.rectangle}Rectangle</button>` +
+      `<button type="button" data-tool="edit" title="Edit shapes" aria-label="Edit shapes">${ICONS.edit}</button>` +
+      `<button type="button" data-tool="remove" title="Delete shapes" aria-label="Delete shapes">${ICONS.trash}</button>`;
+    L.DomEvent.disableClickPropagation(div);
+    div.addEventListener("click", e => {
+      const tool = e.target.closest("button")?.dataset.tool;
+      if (!tool) return;
+      const wasActive = activeTool() === tool;
+      stopTools();
+      if (wasActive) return;
+      if (tool === "edit") map.pm.enableGlobalEditMode();
+      else if (tool === "remove") map.pm.enableGlobalRemovalMode();
+      else map.pm.enableDraw(tool);
+    });
+    return div;
+  };
+  drawControl.addTo(map);
+
+  const activeTool = () =>
+    map.pm.globalEditModeEnabled() ? "edit"
+      : map.pm.globalRemovalModeEnabled() ? "remove"
+      : map.pm.Draw.getActiveShape();
+  function stopTools() {
+    map.pm.disableDraw();
+    if (map.pm.globalEditModeEnabled()) map.pm.disableGlobalEditMode();
+    if (map.pm.globalRemovalModeEnabled()) map.pm.disableGlobalRemovalMode();
+  }
+  const markActiveTool = () => drawControl.getContainer().querySelectorAll("button")
+    .forEach(b => b.classList.toggle("active", b.dataset.tool === activeTool()));
+  map.on("pm:drawstart pm:drawend pm:globaleditmodetoggled pm:globalremovalmodetoggled", markActiveTool);
+  // Finishes the polygon being drawn, if it has at least three points.
+  // Geoman has no public method for this, so it calls the draw handler's own.
+  function finishPolygon() {
+    const draw = map.pm.Draw.Polygon;
+    if (activeTool() === "Polygon" && draw._layer.getLatLngs().length >= 3) draw._finishShape();
+  }
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape") stopTools();
+    if (e.key === "Enter" && !e.target.matches("input, textarea, select, button")) finishPolygon();
   });
+
+  // Closing a polygon is easier: double-click the last point, or click
+  // near the first point and it snaps onto it.
   map.pm.setGlobalOptions({
-    snappable: false,
+    finishOn: "dblclick",
+    snappable: true,
+    snapDistance: 25,
     pathOptions: { color: "#FFFFFF", weight: 2, fillColor: "#FFFFFF", fillOpacity: 0.15, dashArray: "6 4" }
   });
 
@@ -214,9 +333,7 @@
   }
 
   function clearPending() {
-    map.pm.disableDraw();
-    if (map.pm.globalEditModeEnabled()) map.pm.disableGlobalEditMode();
-    if (map.pm.globalRemovalModeEnabled()) map.pm.disableGlobalRemovalMode();
+    stopTools();
     pending.forEach(layer => map.removeLayer(layer));
     pending.clear();
     onPendingChange();
