@@ -77,9 +77,9 @@ area_acres <- function(geom) as.numeric(st_area(st_transform(geom, 5070))) / 404
 
 class_tips <- list(
   "Native prairie" = "Remnant, never-plowed grassland. Irregular boundaries that follow terrain (steep or rocky slopes, wet swales, railroad rights-of-way, cemeteries); mottled, heterogeneous texture from mixed grasses, forbs, and scattered shrubs; no row or tillage patterns. Warm-season grasses green up late, so remnants can look duller than cool-season hay in spring imagery.",
-  "Hay/pasture" = "Planted or managed grass/legume cover. Regular field shapes and uniform texture. Hay: mowing swaths, windrows, bales, sharp cut/uncut contrasts. Pasture: livestock trails, stock ponds and tanks, fences, worn areas near water. Cool-season species (brome, fescue) are bright green or bright red in color infrared early in the season.",
-  "Row crop" = "Annual cultivated crops. Linear row patterns, uniform canopy in mid-summer, bare or residue-covered soil in spring and fall, center pivots, terraces. Grassed waterways inside crop fields are not hay.",
-  "Ruderal vegetation" = "Weedy, disturbance-driven cover. Abandoned or fallow fields, field margins, recently disturbed ground; patchy texture with bare spots and weedy colonizers; often transitional between other classes."
+  "Agricultural - Hay/pasture" = "Planted or managed grass/legume cover. Regular field shapes and uniform texture. Hay: mowing swaths, windrows, bales, sharp cut/uncut contrasts. Pasture: livestock trails, stock ponds and tanks, fences, worn areas near water. Cool-season species (brome, fescue) are bright green or bright red in color infrared early in the season.",
+  "Agricultural - Row crop" = "Annual cultivated crops. Linear row patterns, uniform canopy in mid-summer, bare or residue-covered soil in spring and fall, center pivots, terraces. Grassed waterways inside crop fields are not hay.",
+  "Ruderal/old field" = "Weedy, disturbance-driven cover. Abandoned or fallow fields, field margins, recently disturbed ground; patchy texture with bare spots and weedy colonizers; often transitional between other classes."
 )
 
 tips_ui <- tagList(
