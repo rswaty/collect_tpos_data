@@ -10,6 +10,9 @@ const Imagery = (() => {
   const EOX_ATTR = '<a href="https://s2maps.eu">Sentinel-2 cloudless</a> by EOX IT Services GmbH (contains modified Copernicus Sentinel data)';
 
   const ESRI_GROUP = "Esri World Imagery";
+  // Wayback entries are dated by when Esri published the snapshot, not by when
+  // the imagery was taken; the capture date comes from captureDate().
+  const ESRI_RELEASE_GROUP = "Esri release date";
   const NAIP_GROUP = "NAIP aerial (0.3-1 m)";
   const S2_GROUP = "Sentinel-2 (10 m)";
 
@@ -31,9 +34,9 @@ const Imagery = (() => {
       return releases.map((r, i) => ({
         id: `wayback_${r.release}`,
         label: `Esri World Imagery, ${r.date} release${i === 0 ? " (latest)" : ""}`,
-        name: `Esri · ${shortDate(r.date)}`,
+        name: `Esri release · ${shortDate(r.date)}`,
         short: `${shortDate(r.date)}${i === 0 ? " · latest" : ""}`,
-        group: ESRI_GROUP,
+        group: ESRI_RELEASE_GROUP,
         type: "xyz",
         url: r.url.replace("{level}/{row}/{col}", "{z}/{y}/{x}"),
         attribution: ESRI_ATTR,
