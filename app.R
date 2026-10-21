@@ -17,9 +17,9 @@ library(DT)
 
 cover_classes <- c(
   "Native prairie"     = "#FFD700",
-  "Hay/pasture"        = "#00E5FF",
-  "Row crop"           = "#FF1493",
-  "Ruderal vegetation" = "#B388FF"
+  "Agricultural - Hay/pasture"        = "#00E5FF",
+  "Agricultural - Row crop"           = "#FF1493",
+  "Ruderal/old field" = "#B388FF"
 )
 confidence_levels <- c("High", "Medium", "Low")
 
